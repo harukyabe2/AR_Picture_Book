@@ -1,4 +1,5 @@
 ## VSCodeでの変更を反映する  <!--#を1〜6個置くとサイズが大から小の見出し-->
+git pull  
 git add 変更したファイル名  
 git commit -m "変更内容"  
 git push  
