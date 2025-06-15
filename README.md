@@ -13,4 +13,4 @@ Github上のPull requestsでPull Requestを作成
 <!--半角スペース2つで改行-->
 # 注意点
 mainブランチに直接pushはしない  
-必ずmainをpullしてから作用を開始する  
+必ずmainをpullしてから作業を開始する  
