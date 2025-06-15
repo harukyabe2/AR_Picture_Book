@@ -1,6 +1,6 @@
 ## VSCodeでの操作方法について  <!--#を1〜6個置くとサイズが大から小の見出し-->
 # 作業開始前  
-git check out main (mainブランチに移動する)  
+git checkout main (mainブランチに移動する)  
 git pull origin main (mainブランチの最新状態を取り込む)  
 git checkout -b 自分のブランチ名 (自分のブランチに移動する *ただし、-bは作成時のみ)  
 # 作業後  
