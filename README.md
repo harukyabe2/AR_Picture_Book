@@ -11,3 +11,6 @@ git push origin 自分のブランチ名
 Github上のPull requestsでPull Requestを作成  
 レビューとmerge (mainブランチに取り込む)  
 <!--半角スペース2つで改行-->
+# 注意点
+mainブランチに直接pushはしない  
+必ずmainをpullしてから作用を開始する  
