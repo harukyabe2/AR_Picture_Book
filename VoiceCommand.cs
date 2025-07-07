@@ -8,7 +8,7 @@ public class VoiceCommand : MonoBehaviour
     private KeywordRecognizer recognizer;
     private Dictionary<string, System.Action> currentCommands = new Dictionary<string, System.Action>();
 
-    public enum State { Opening, Sword, Heroine, Alone, Friends, Help, NotHelp }//ƒV[ƒ“‚²‚Æ‚Ìó‘Ô•Ï”‚Ìİ’è
+    public enum State { Opening, Sword, Heroine, Alone, Friends, Help, NotHelp }//ï¿½Vï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½Æ‚Ìï¿½Ô•Ïï¿½ï¿½Ìİ’ï¿½
     public State currentState;
 
     void Start()
@@ -30,7 +30,7 @@ public class VoiceCommand : MonoBehaviour
 
     private void UpdateCommandsForState(State state)
     {
-        // ˆÈ‘O‚ÌRecognizer‚ğ~‚ß‚Ä”jŠü
+        // ï¿½È‘Oï¿½ï¿½Recognizerï¿½ï¿½ï¿½~ï¿½ß‚Ä”jï¿½ï¿½
         if (recognizer != null && recognizer.IsRunning)
             recognizer.Stop();
 
@@ -39,28 +39,28 @@ public class VoiceCommand : MonoBehaviour
             recognizer.OnPhraseRecognized -= OnPhraseRecognized;
             recognizer.Dispose();
         }
-        Debug.Log("‰¹º‚ğ“ü—Í‚µ‚Ä");
-        // ó‘Ô‚É‰‚¶‚½ƒRƒ}ƒ“ƒh‚ğİ’è
+        Debug.Log("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í‚ï¿½ï¿½ï¿½");
+        // ï¿½ï¿½Ô‚É‰ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Rï¿½}ï¿½ï¿½ï¿½hï¿½ï¿½İ’ï¿½
         currentCommands.Clear();
         switch (state)
         {
             case State.Opening:
-                currentCommands.Add("”²‚­", () => Debug.Log("Œ•‚ğ”²‚­I"));
-                currentCommands.Add("”²‚©‚È‚¢", () => Debug.Log("Œ•‚ğ”²‚©‚È‚¢"));
+                currentCommands.Add("ï¿½ï¿½ï¿½ï¿½", () => Debug.Log("ï¿½ï¿½ï¿½ğ”²‚ï¿½ï¿½I"));
+                currentCommands.Add("ï¿½ï¿½ï¿½ï¿½ï¿½È‚ï¿½", () => Debug.Log("ï¿½ï¿½ï¿½ğ”²‚ï¿½ï¿½È‚ï¿½"));
                 break;
 
             case State.Sword:
-                currentCommands.Add("ˆêl‚Å", () => Debug.Log("ˆêl‚Åí‚¤"));
-                currentCommands.Add("’‡ŠÔ‚Æ", () => Debug.Log("’‡ŠÔ‚Æí‚¤"));
+                currentCommands.Add("ï¿½ï¿½lï¿½ï¿½", () => Debug.Log("ï¿½ï¿½lï¿½Åí‚¤"));
+                currentCommands.Add("ï¿½ï¿½ï¿½Ô‚ï¿½", () => Debug.Log("ï¿½ï¿½ï¿½Ô‚Æí‚¤"));
                 break;
 
             case State.Heroine:
-                currentCommands.Add("•‚¯‚é", () => Debug.Log("•‚¯‚é"));
-                currentCommands.Add("•‚¯‚È‚¢", () => Debug.Log("•‚¯‚é"));
+                currentCommands.Add("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½", () => Debug.Log("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"));
+                currentCommands.Add("ï¿½ï¿½ï¿½ï¿½ï¿½È‚ï¿½", () => Debug.Log("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"));
                 break;
         }
 
-        // V‚µ‚¢Recognizer‚ğì¬
+        // ï¿½Vï¿½ï¿½ï¿½ï¿½Recognizerï¿½ï¿½ï¿½ì¬
         if (currentCommands.Count > 0)
         {
             recognizer = new KeywordRecognizer(currentCommands.Keys.ToArray());
@@ -71,8 +71,106 @@ public class VoiceCommand : MonoBehaviour
 
     private void OnPhraseRecognized(PhraseRecognizedEventArgs args)
     {
-        Debug.Log("”F¯‚³‚ê‚½ƒRƒ}ƒ“ƒh: " + args.text);
+        Debug.Log("ï¿½Fï¿½ï¿½ï¿½ï¿½ï¿½ê‚½ï¿½Rï¿½}ï¿½ï¿½ï¿½h: " + args.text);
         if (currentCommands.ContainsKey(args.text))
             currentCommands[args.text].Invoke();
+    }
+}
+using UnityEngine;
+using UnityEngine.Windows.Speech;
+using System.Collections.Generic;
+using System.Linq;
+
+public class VoiceCommand : MonoBehaviour
+{
+    private KeywordRecognizer recognizer;
+    private Dictionary<string, System.Action> currentCommands = new Dictionary<string, System.Action>();
+
+    public enum State { Opening, Sword, Heroine, Alone, Friends, Help, NotHelp }
+    public State currentState;
+
+    // ARObjectSwitcherã¸ã®å‚ç…§ã‚’è¿½åŠ 
+    public ARObjectSwitcher arObjectSwitcher;
+
+    void Start()
+    {
+        // ARObjectSwitcherã®å‚ç…§ãŒè¨­å®šã•ã‚Œã¦ã„ã‚‹ã‹ç¢ºèª
+        if (arObjectSwitcher == null)
+        {
+            Debug.LogError("ARObjectSwitcher is not assigned in the Inspector!");
+            // ã‚‚ã—Image Targetã«ã‚¢ã‚¿ãƒƒãƒã•ã‚Œã¦ã„ã‚‹ãªã‚‰ã€GameObject.Findãªã©ã§å–å¾—ã™ã‚‹ã“ã¨ã‚‚å¯èƒ½
+            // arObjectSwitcher = FindObjectOfType<ARObjectSwitcher>(); // æ³¨æ„: ã‚·ãƒ¼ãƒ³ã«ä¸€ã¤ã—ã‹ãªã„å ´åˆã«é™ã‚‹
+        }
+
+        UpdateCommandsForState(currentState);
+        // SetState(State.Opening); 
+        SetState(State.Sword); // ãƒ†ã‚¹ãƒˆç”¨ã«SwordçŠ¶æ…‹ã‹ã‚‰é–‹å§‹
+        // SetState(State.Heroine);
+    }
+
+    public void SetState(State newState)
+    {
+        if (newState != currentState)
+        {
+            currentState = newState;
+            UpdateCommandsForState(currentState);
+        }
+    }
+
+    private void UpdateCommandsForState(State state)
+    {
+        // ä»¥å‰ã®Recognizerã‚’æ­¢ã‚ã¦ç ´æ£„
+        if (recognizer != null && recognizer.IsRunning)
+            recognizer.Stop();
+
+        if (recognizer != null)
+        {
+            recognizer.OnPhraseRecognized -= OnPhraseRecognized;
+            recognizer.Dispose();
+        }
+        Debug.Log("éŸ³å£°ã‚’å…¥åŠ›ã—ã¦");
+        // çŠ¶æ…‹ã«å¿œã˜ãŸã‚³ãƒãƒ³ãƒ‰ã‚’è¨­å®š
+        currentCommands.Clear();
+        switch (state)
+        {
+            case State.Opening:
+                currentCommands.Add("æŠœã", () => { Debug.Log("å‰£ã‚’æŠœãï¼"); if (arObjectSwitcher != null) arObjectSwitcher.SwitchARObject(0); }); // ãƒ—ãƒ¬ãƒãƒ–ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã‚’æŒ‡å®š
+                currentCommands.Add("æŠœã‹ãªã„", () => { Debug.Log("å‰£ã‚’æŠœã‹ãªã„"); if (arObjectSwitcher != null) arObjectSwitcher.HideARObject(); });
+                break;
+
+            case State.Sword:
+                currentCommands.Add("ä¸€äººã§", () => { Debug.Log("ä¸€äººã§æˆ¦ã†"); if (arObjectSwitcher != null) arObjectSwitcher.SwitchARObject(0); }); // ãƒ—ãƒ¬ãƒãƒ–ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã‚’æŒ‡å®š
+                currentCommands.Add("ä»²é–“ã¨", () => { Debug.Log("ä»²é–“ã¨æˆ¦ã†"); if (arObjectSwitcher != null) arObjectSwitcher.SwitchARObject(1); });
+                break;
+
+            case State.Heroine:
+                currentCommands.Add("åŠ©ã‘ã‚‹", () => { Debug.Log("åŠ©ã‘ã‚‹"); if (arObjectSwitcher != null) arObjectSwitcher.SwitchARObject(0); });
+                currentCommands.Add("åŠ©ã‘ãªã„", () => { Debug.Log("åŠ©ã‘ãªã„"); if (arObjectSwitcher != null) arObjectSwitcher.SwitchARObject(1); });
+                break;
+        }
+
+        // æ–°ã—ã„Recognizerã‚’ä½œæˆ
+        if (currentCommands.Count > 0)
+        {
+            recognizer = new KeywordRecognizer(currentCommands.Keys.ToArray());
+            recognizer.OnPhraseRecognized += OnPhraseRecognized;
+            recognizer.Start();
+        }
+    }
+
+    private void OnPhraseRecognized(PhraseRecognizedEventArgs args)
+    {
+        Debug.Log("èªè­˜ã•ã‚ŒãŸã‚³ãƒãƒ³ãƒ‰: " + args.text);
+        if (currentCommands.ContainsKey(args.text))
+            currentCommands[args.text].Invoke();
+    }
+
+    void OnDestroy()
+    {
+        if (recognizer != null)
+        {
+            recognizer.OnPhraseRecognized -= OnPhraseRecognized;
+            recognizer.Dispose();
+        }
     }
 }
