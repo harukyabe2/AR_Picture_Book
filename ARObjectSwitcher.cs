@@ -1,3 +1,5 @@
+// NO USING
+
 using UnityEngine;
 using Vuforia; // Vuforiaの名前空間を追加
 
