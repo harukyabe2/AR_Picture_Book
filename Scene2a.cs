@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.Windows.Speech;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine.SceneManagement;
 
 // クラス名を元のものに合わせます
 public class Scene2a_HeroSelectingWay : MonoBehaviour
@@ -26,6 +27,8 @@ public class Scene2a_HeroSelectingWay : MonoBehaviour
     public float moveSpeed = 5.0f;
     public float rotateSpeed = 180.0f;
 
+    public GameObject targetTerrainGameObject;
+
     // 各目標地点 (ローカル座標)
     private Vector3 waitPoint = new Vector3(0f, 0f, 15f);
     private Vector3 targetA = new Vector3(-16f, 0f, 25f);
@@ -44,6 +47,7 @@ public class Scene2a_HeroSelectingWay : MonoBehaviour
         HeroMovement = GetComponent<Animator>();
         // ★ローカル座標で動作するように初期位置を設定
         transform.localPosition = Vector3.zero;
+        targetTerrainGameObject.SetActive(!targetTerrainGameObject.activeSelf);
     }
 
     void Update()

@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.Windows.Speech;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine.SceneManagement;
 
 public class FinalMovementControllerV2 : MonoBehaviour
 {
@@ -50,6 +51,8 @@ public class FinalMovementControllerV2 : MonoBehaviour
     private KeywordRecognizer recognizer;
     private Dictionary<string, System.Action> voiceCommands = new Dictionary<string, System.Action>();
 
+    public GameObject targetTerrainGameObject;
+
     void Start()
     {
         currentState = MovementState.TurningToWaitPoint;
@@ -60,6 +63,7 @@ public class FinalMovementControllerV2 : MonoBehaviour
         Turtle3Movement = turtle3.GetComponent<Animator>();
         // ★ローカル座標で動作するように初期位置を設定
         transform.localPosition = Vector3.zero;
+        targetTerrainGameObject.SetActive(!targetTerrainGameObject.activeSelf);
     }
 
     void Update()
