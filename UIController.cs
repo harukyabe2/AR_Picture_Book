@@ -24,16 +24,18 @@ public class UIController : MonoBehaviour
     public TextMeshProUGUI uiText1;
     public TextMeshProUGUI uiText2;
     public TextMeshProUGUI uiText3; // 地の文用
-    public float narrationInterval = 2.5f;
+    public float narrationInterval = 5f;//テキストが切り替わる間隔
 
     public Image glowImage1; // 外枠用Image（UI上の枠など）
     public Image glowImage2;
 
     public Color emissionOnColor = Color.yellow;
     public Color emissionOffColor = Color.black;
-    public float blinkInterval = 0.2f;
-    public int blinkCount = 3;
-
+    public float blinkInterval = 0.2f;//点滅する間隔
+    public int blinkCount = 3;//点滅する回数
+    public AudioSource audioSource;
+    public List<AudioClip> voiceClips; // VOICEVOXの音声クリップを格納するリスト
+    
 
     private Material glowMat1;
     private Material glowMat2;
@@ -83,11 +85,19 @@ public class UIController : MonoBehaviour
         // 一瞬光らせる
         // テキスト変更はディレイ後に
         var lines = GetTextForState3(newState);
+        //次のシーンのアニメーションが写る前に選択後のアニメーションと対応したテキストを流す
         if(lines.Count > 0)
         {
             uiText3.text = lines[0]; // 最初の行を表示
         }
-        StartCoroutine(ChangeTextWithDelay(newState, 4.0f));
+        if (voiceClips.Count > 0 && voiceClips[0] != null)
+        {
+            audioSource.Stop();
+            audioSource.clip = voiceClips[0];
+            audioSource.Play();
+        }
+        //次のシーンのアニメーションに合わせてテキスト変更、適宜秒数は変えてほしい
+        StartCoroutine(ChangeTextWithDelay(newState, voiceClips[0].length + 0.2f));
     }
 
     private void TriggerGlow(Material mat)
@@ -136,8 +146,10 @@ public class UIController : MonoBehaviour
             default: return "";
         }
     }
+    //ナレーションに使うテキストを状態ごとに定義したコード
     private List<string> GetTextForState3(VoiceCommand.State state)
     {
+        SetVoiceClipsForState(state); // 状態に応じて音声クリップを設定
         switch (state)
         {
             case VoiceCommand.State.Opening:
@@ -206,7 +218,7 @@ public class UIController : MonoBehaviour
                 return new List<string>();
         }
     }
-
+    //1行目から流すコード。Openingにしか使えない
     private IEnumerator ShowNarrationSequenceOpening(List<string> lines)
     {
         for (int i = 0; i < lines.Count; i++)
@@ -215,12 +227,25 @@ public class UIController : MonoBehaviour
 
             // 必要であればここで VOICEVOX 音声再生処理も追加
             // audioSource.PlayOneShot(...)
+            if(i < voiceClips.Count && voiceClips[i] != null)
+            {
+                audioSource.Stop();
+                audioSource.clip = voiceClips[i];
+                audioSource.Play();
+            }
 
             if (i < lines.Count - 1)
+                yield return new WaitForSeconds(voiceClips[i].length + 0.2f);
+            else
+            {
+                // 音声がなければ固定時間だけ待つ
                 yield return new WaitForSeconds(narrationInterval);
+            }
         }
-    }
 
+
+    }
+    //２行目以降を流すためのコード
     private IEnumerator ShowNarrationSequence(List<string> lines)
     {
         for (int i = 1; i < lines.Count; i++)
@@ -229,9 +254,77 @@ public class UIController : MonoBehaviour
 
             // 必要であればここで VOICEVOX 音声再生処理も追加
             // audioSource.PlayOneShot(...)
-
+            if (i < voiceClips.Count && voiceClips[i] != null)
+            {
+                audioSource.Stop();
+                audioSource.clip = voiceClips[i];
+                audioSource.Play();
+            }
             if (i < lines.Count - 1)
+                yield return new WaitForSeconds(voiceClips[i].length + 0.2f);
+            else
+            {
+                // 音声がなければ固定時間だけ待つ
                 yield return new WaitForSeconds(narrationInterval);
+            }
         }
     }
+
+
+    public void SetVoiceClipsForState(VoiceCommand.State state)
+    {
+        voiceClips.Clear();
+        switch (state)
+        {
+            case VoiceCommand.State.Opening:
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Opening1"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Opening2"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Opening3"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Opening4"));
+                break;
+            // 他のStateも同様に設定
+            case VoiceCommand.State.Sword:
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Sword1"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Sword2"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Sword3"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Sword4"));
+                break;
+            case VoiceCommand.State.Heroine:
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Heroine1"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Heroine2"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Heroine3"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Heroine4"));
+                break;
+            case VoiceCommand.State.Alone:
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Alone1"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Alone2"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Alone3"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Alone4"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Alone5"));
+                break;
+            case VoiceCommand.State.Friends:
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Friends1"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Friends2"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Friends3"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Friends4"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Friends5"));    
+                break;
+            case VoiceCommand.State.Help:
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Help1"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Help2"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Help3"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/Help4"));
+                break;
+            case VoiceCommand.State.NotHelp:
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/NotHelp1"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/NotHelp2"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/NotHelp3"));
+                voiceClips.Add(Resources.Load<AudioClip>("Voice/NotHelp4"));
+                break;
+            default:
+                break;
+
+        }
+    }
+
 }
