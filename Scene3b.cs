@@ -23,6 +23,8 @@ public class scene3b : MonoBehaviour
 
     private float startOffset = 3.0f;
 
+    public GameObject targetTerrainGameObject1, targetTerrainGameObject2;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -35,12 +37,14 @@ public class scene3b : MonoBehaviour
         Invoke(nameof(HeroAttackTriggerOn), startOffset + 2.2f);
         //Invoke(nameof(DemonDieTriggerOn), startOffset + 3.5f);
         Invoke(nameof(VictoryTriggerOn), startOffset + 6.1f);
+        targetTerrainGameObject1.SetActive(!targetTerrainGameObject1.activeSelf);
+        targetTerrainGameObject2.SetActive(!targetTerrainGameObject2.activeSelf);
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+
     }
 
     void PartyAttackTriggerOn()

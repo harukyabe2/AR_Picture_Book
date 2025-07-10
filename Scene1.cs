@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.Windows.Speech;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine.SceneManagement;
 
 public class Scene1 : MonoBehaviour
 {
@@ -178,11 +179,15 @@ public class Scene1 : MonoBehaviour
         switch (state)
         {
             case VoiceState.Opening:
-                voiceCommands.Add("抜く", () => { HeroFindingTheSword.SetTrigger("MoveTrigger"); currentMovementState = MovementState.MovingToPositionA; SceneManager.Instance.SetNextSceneChoice(true); });
-                voiceCommands.Add("抜かない", () => { HeroFindingTheSword.SetTrigger("MoveTrigger"); currentMovementState = MovementState.RotatingForB; SceneManager.Instance.SetNextSceneChoice(false); });
+                voiceCommands.Add("抜く", () => { 
+                    HeroFindingTheSword.SetTrigger("MoveTrigger");
+                    currentMovementState = MovementState.MovingToPositionA;
+                    SceneManager.Instance.SetNextSceneChoice(true); });
+                voiceCommands.Add("抜かない", () => { 
+                    HeroFindingTheSword.SetTrigger("MoveTrigger");
+                    currentMovementState = MovementState.RotatingForB;
+                    SceneManager.Instance.SetNextSceneChoice(false); });
                 break;
-            case VoiceState.Sword: voiceCommands.Add("一人で", () => CleanupRecognizer()); voiceCommands.Add("仲間と", () => CleanupRecognizer()); break;
-            case VoiceState.Heroine: voiceCommands.Add("助ける", () => CleanupRecognizer()); voiceCommands.Add("助けない", () => CleanupRecognizer()); break;
         }
     }
     private void OnPhraseRecognized(PhraseRecognizedEventArgs args)
