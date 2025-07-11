@@ -125,6 +125,9 @@ public class Scene1 : MonoBehaviour
         {
             Debug.Log("ARマーカーを認識しました。シーケンスを開始します。");
 
+            // UIControllerにUI表示を命令
+            SceneManager.Instance.ShowUIPrompt(UIController.UIScreenID.Scene1_Opening);
+
             // ★追加: アニメーション再生のトリガーを引く
             HeroFindingTheSword.SetTrigger("MoveTrigger");
 
@@ -142,6 +145,9 @@ public class Scene1 : MonoBehaviour
     public void ResetSequence()
     {
         Debug.Log("ARマーカーを見失いました。シーケンスをリセットします。");
+
+        // マーカーが見失われたらUIを非表示にする
+        SceneManager.Instance.HideUIPrompt();
 
         // 進行中の処理をすべて停止
         CleanupRecognizer();
@@ -179,11 +185,13 @@ public class Scene1 : MonoBehaviour
         switch (state)
         {
             case VoiceState.Opening:
-                voiceCommands.Add("抜く", () => { 
+                voiceCommands.Add("Draw the sword", () => {
+                    SceneManager.Instance.TriggerChoiceGlow(true);
                     HeroFindingTheSword.SetTrigger("MoveTrigger");
                     currentMovementState = MovementState.MovingToPositionA;
                     SceneManager.Instance.SetNextSceneChoice(true); });
-                voiceCommands.Add("抜かない", () => { 
+                voiceCommands.Add("Ignore the sword", () => {
+                    SceneManager.Instance.TriggerChoiceGlow(false);
                     HeroFindingTheSword.SetTrigger("MoveTrigger");
                     currentMovementState = MovementState.RotatingForB;
                     SceneManager.Instance.SetNextSceneChoice(false); });

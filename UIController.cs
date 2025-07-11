@@ -2,329 +2,350 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections;
-using System.Runtime.CompilerServices;
 using System.Collections.Generic;
-using System.Net.NetworkInformation;
-using System.Numerics;
-using Unity.VisualScripting;
-using UnityEditor.Experimental.GraphView;
-using UnityEngine.SocialPlatforms.Impl;
-using UnityEngine.XR;
-using System.IO;
-using System.Threading;
-using static UnityEditor.PlayerSettings;
-using static UnityEngine.ParticleSystem;
-using System.Diagnostics;
-using System.Runtime.ConstrainedExecution;
-using UnityEditor;
-using UnityEditor.PackageManager;
 
 public class UIController : MonoBehaviour
 {
-    public TextMeshProUGUI uiText1;
-    public TextMeshProUGUI uiText2;
-    public TextMeshProUGUI uiText3; // 地の文用
-    public float narrationInterval = 5f;//テキストが切り替わる間隔
+    [Header("UI Text References")]
+    public TextMeshProUGUI uiText1; // 選択肢1
+    public TextMeshProUGUI uiText2; // 選択肢2
+    public TextMeshProUGUI uiText3; // ナレーション
 
-    public Image glowImage1; // 外枠用Image（UI上の枠など）
-    public Image glowImage2;
+    [Header("UI Effect References")]
+    public Image glowImage1; // 選択肢1の背景画像
+    public Image glowImage2; // 選択肢2の背景画像
 
-    public Color emissionOnColor = Color.yellow;
-    public Color emissionOffColor = Color.black;
-    public float blinkInterval = 0.2f;//点滅する間隔
-    public int blinkCount = 3;//点滅する回数
+    [Header("Effect Settings")]
+    public float narrationInterval = 2.5f;
+    public Color glowColor = Color.yellow; // 点滅時の色
+    public float blinkInterval = 0.2f;
+    public int blinkCount = 3;
+
+    // 元の色を保存するための変数
+    private Color originalGlowColor1;
+    private Color originalGlowColor2;
+    private bool colorsInitialized = false;
+
+    // ★追加: 音声再生用のAudioSource
+    [Header("Audio References")]
     public AudioSource audioSource;
-    public List<AudioClip> voiceClips; // VOICEVOXの音声クリップを格納するリスト
-    
-
-    private Material glowMat1;
-    private Material glowMat2;
-
-    void Start()
+    // ★追加: テキストと音声ファイルのパスをセットで管理するデータ構造
+    private struct NarrationLine
     {
-        // 複製マテリアルで他UIと共有しないようにする
-        glowMat1 = Instantiate(glowImage1.material);
-        glowMat2 = Instantiate(glowImage2.material);
-        glowImage1.material = glowMat1;
-        glowImage2.material = glowMat2;
+        public string Text;
+        public string VoiceClipPath; // Resources/Voice/ フォルダからのパス
+    }
+    // ★この行を追加：実行中のコルーチンを保存しておくための変数
+    private Coroutine narrationCoroutine;
 
-        // 初期は発光オフ
-        glowMat1.SetColor("_EmissionColor", emissionOffColor);
-        glowMat2.SetColor("_EmissionColor", emissionOffColor);
-        StartCoroutine(ShowNarrationSequenceOpening(GetTextForState3(VoiceCommand.State.Opening)));
+    public enum UIScreenID
+    {
+        None, Scene1_Opening, Scene2a_SwordChoice, Scene2b_HeroineChoice,
+        Scene3a_Alone, Scene3b_WithCompanion, Scene3c_Happy, Scene3d_Bad,
     }
 
-    public void PlayEffectAndUpdateText(VoiceCommand.State newState)
+    void Awake()
     {
-        switch(newState){
-            case VoiceCommand.State.Opening:
-                TriggerGlow(glowMat1);
-                break;
-            case VoiceCommand.State.Sword:
-                TriggerGlow(glowMat1);
-                break;
-            case VoiceCommand.State.Heroine:
-                TriggerGlow(glowMat2);
-                break;
-            case VoiceCommand.State.Alone:
-                TriggerGlow(glowMat1);
-                break;
-            case VoiceCommand.State.Friends:
-                TriggerGlow(glowMat2);
-                break;
-            case VoiceCommand.State.Help:
-                TriggerGlow(glowMat1);
-                break;
-            case VoiceCommand.State.NotHelp:
-                TriggerGlow(glowMat2);
-                break;
-            default:
-                break;
-            }
-        //状態ごとに光らせるものをcase文で定義することによって片方だけ光らせることはできる。
-        // 一瞬光らせる
-        // テキスト変更はディレイ後に
-        var lines = GetTextForState3(newState);
-        //次のシーンのアニメーションが写る前に選択後のアニメーションと対応したテキストを流す
-        if(lines.Count > 0)
+        // 開始時はすべて非表示にする
+        HideAllUI();
+    }
+
+    // --- SceneManagerから呼び出される公開メソッド ---
+
+    // 指定されたIDの画面を表示する
+    public void ShowScreen(UIScreenID screenId)
+    {
+        if (!colorsInitialized)
         {
-            uiText3.text = lines[0]; // 最初の行を表示
+            InitializeOriginalColors();
         }
-        if (voiceClips.Count > 0 && voiceClips[0] != null)
+        HideAllUI(); // 表示する前に一度すべてをリセット
+
+        // ★ナレーション用のテキストオブジェクトは常に表示する
+        if (uiText3 != null) uiText3.gameObject.SetActive(true);
+
+        // ★変更: テキストのリストと音声パスのリストを両方取得する
+        List<string> textLines = GetNarrationForScreen(screenId);
+        List<string> voicePaths = GetVoiceClipPathsForScreen(screenId);
+
+        // ★変更: 両方のリストをナレーション再生処理に渡す
+        narrationCoroutine = StartCoroutine(ShowNarrationSequence(textLines, voicePaths));
+
+
+        // ★選択肢や枠の表示は、必要なシーンの場合だけ実行する
+        switch (screenId)
         {
-            audioSource.Stop();
-            audioSource.clip = voiceClips[0];
-            audioSource.Play();
+            // --- 選択肢があるシーン ---
+            case UIScreenID.Scene1_Opening:
+            case UIScreenID.Scene2a_SwordChoice:
+            case UIScreenID.Scene2b_HeroineChoice:
+                // 選択肢UIのオブジェクトをすべて表示する
+                if (uiText1 != null) uiText1.gameObject.SetActive(true);
+                if (uiText2 != null) uiText2.gameObject.SetActive(true);
+                if (glowImage1 != null) glowImage1.gameObject.SetActive(true);
+                if (glowImage2 != null) glowImage2.gameObject.SetActive(true);
+
+                // テキストを設定する
+                uiText1.text = GetTextForChoice1(screenId);
+                uiText2.text = GetTextForChoice2(screenId);
+                break;
+
+            // --- エンディングシーン (ナレーションのみ) ---
+            case UIScreenID.Scene3a_Alone:
+            case UIScreenID.Scene3b_WithCompanion:
+            case UIScreenID.Scene3c_Happy:
+            case UIScreenID.Scene3d_Bad:
+                // 選択肢UIはHideAllUI()で非表示になったままなので、何もしない
+                break;
         }
-        //次のシーンのアニメーションに合わせてテキスト変更、適宜秒数は変えてほしい
-        StartCoroutine(ChangeTextWithDelay(newState, voiceClips[0].length + 0.2f));
     }
 
-    private void TriggerGlow(Material mat)
+    // すべてのUI要素を非表示にする
+    public void HideAllUI()
     {
-        StartCoroutine(GlowRoutine(mat));
+        StopAllCoroutines();
+
+        // ★変更: テキストを空にするだけでなく、オブジェクト自体を非表示にする
+        if (uiText1 != null) uiText1.gameObject.SetActive(false);
+        if (uiText2 != null) uiText2.gameObject.SetActive(false);
+        if (uiText3 != null) uiText3.gameObject.SetActive(false);
+        if (glowImage1 != null) glowImage1.gameObject.SetActive(false);
+        if (glowImage2 != null) glowImage2.gameObject.SetActive(false);
+
+        // 色のリセット処理は残しておく
+        if (colorsInitialized)
+        {
+            if (glowImage1 != null) glowImage1.color = originalGlowColor1;
+            if (glowImage2 != null) glowImage2.color = originalGlowColor2;
+        }
     }
 
-    private System.Collections.IEnumerator GlowRoutine(Material mat)
+    // --- 内部処理 ---
+
+    private void InitializeOriginalColors()
+    {
+        if (glowImage1 != null) originalGlowColor1 = glowImage1.color;
+        if (glowImage2 != null) originalGlowColor2 = glowImage2.color;
+        colorsInitialized = true;
+    }
+
+    private void TriggerGlow(Image imageToGlow, Color originalColor)
+    {
+        StartCoroutine(GlowRoutine(imageToGlow, originalColor));
+    }
+
+    public void TriggerGlowEffect(bool isLeftChoice)
+    {
+        if (isLeftChoice)
+        {
+            if (glowImage1 != null) TriggerGlow(glowImage1, originalGlowColor1);
+        }
+        else
+        {
+            if (glowImage2 != null) TriggerGlow(glowImage2, originalGlowColor2);
+        }
+    }
+
+    private IEnumerator GlowRoutine(Image imageToGlow, Color originalColor)
     {
         for (int i = 0; i < blinkCount; i++)
         {
-            mat.SetColor("_EmissionColor", emissionOnColor);
+            imageToGlow.color = glowColor;
             yield return new WaitForSeconds(blinkInterval);
-            mat.SetColor("_EmissionColor", emissionOffColor);
+            imageToGlow.color = originalColor;
             yield return new WaitForSeconds(blinkInterval);
         }
     }
 
-    private System.Collections.IEnumerator ChangeTextWithDelay(VoiceCommand.State newState, float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        uiText1.text = GetTextForState1(newState);
-        uiText2.text = GetTextForState2(newState);
-        StartCoroutine(ShowNarrationSequence(GetTextForState3(newState)));
+    // UIController.cs の ShowNarrationSequence メソッドを修正
 
+    private IEnumerator ShowNarrationSequence(List<string> textLines, List<string> voiceClipPaths)
+    {
+        if (textLines == null || textLines.Count == 0) yield break;
+
+        for (int i = 0; i < textLines.Count; i++)
+        {
+            // テキストリストからテキストを設定
+            uiText3.text = textLines[i];
+
+            // ★待機時間を計算するための変数を準備
+            float waitTime = narrationInterval; // 音声がない場合のデフォルト待機時間
+
+            // 音声パスのリストに対応する音声があるか確認
+            if (i < voiceClipPaths.Count)
+            {
+                AudioClip clip = Resources.Load<AudioClip>(voiceClipPaths[i]);
+                if (clip != null)
+                {
+                    audioSource.PlayOneShot(clip);
+                    waitTime = clip.length; // ★待機時間を音声の長さに上書き
+                }
+            }
+
+            // ★追加: 次の行がある場合のみ、計算した時間だけ待機する
+            if (i < textLines.Count - 1)
+            {
+                yield return new WaitForSeconds(waitTime + 0.2f); // 音声の長さ + 少し余韻を持たせる
+            }
+        }
     }
 
-    private string GetTextForState1(VoiceCommand.State state)
+    // --- テキストデータを返すメソッド群 ---
+
+    private string GetTextForChoice1(UIScreenID screenId) // Left choice
     {
-        switch (state)
+        switch (screenId)
+
         {
-            case VoiceCommand.State.Opening: return "Draw the sword";
-            case VoiceCommand.State.Sword: return "Alone";
-            case VoiceCommand.State.Heroine: return "Save";
+            case UIScreenID.Scene1_Opening: return "Draw the sword";
+            case UIScreenID.Scene2a_SwordChoice: return "Alone";
+            case UIScreenID.Scene2b_HeroineChoice: return "Save";
             default: return "";
         }
     }
 
-    private string GetTextForState2(VoiceCommand.State state)
+    private string GetTextForChoice2(UIScreenID screenId) // Right choice
     {
-        switch (state)
+        switch (screenId)
         {
-            case VoiceCommand.State.Opening: return "Ignore the sword";
-            case VoiceCommand.State.Sword: return "With companion";
-            case VoiceCommand.State.Heroine: return "Run away";
+            case UIScreenID.Scene1_Opening: return "Ignore the sword";
+            case UIScreenID.Scene2a_SwordChoice: return "With companion";
+            case UIScreenID.Scene2b_HeroineChoice: return "Run away";
             default: return "";
         }
     }
-    //ナレーションに使うテキストを状態ごとに定義したコード
-    private List<string> GetTextForState3(VoiceCommand.State state)
+
+    private List<string> GetNarrationForScreen(UIScreenID screenId)
     {
-        SetVoiceClipsForState(state); // 状態に応じて音声クリップを設定
-        switch (state)
+        switch (screenId)
         {
-            case VoiceCommand.State.Opening:
-                return new List<string>
-                {
-                    "This is a world threatened by the Demon King.",
-                    "Before a lone hero stands the legendary sword.",
-                    "Will he draw the blade and face the Demon King?",
-                    "He must make a choice—one that will shape the fate of all."
-                };
-            case VoiceCommand.State.Sword:
-                return new List<string>
-                {
-                    "The hero drew the sword and chose to fight.",
-                    "Ahead lies the battle that awaits in the Demon King's castle.",
-                    "Will he walk this path alone—",
-                    "or journey forward alongside companions?",
-                };
-            case VoiceCommand.State.Heroine:
-                return new List<string>
-                {
-                    "The hero chose not to draw the sword.",
-                    "He turned away from the legendary sword,",
-                    "After that, he came across a young girl attacked by mosnters.",
-                    "Should he help her, or run away?"
-                };
-            case VoiceCommand.State.Alone:
-                return new List<string>
-                {
-                    "The hero set out alone to challenge the Demon King.",
-                    "Thanks to the power of the legendary sword,",
-                    "he finally reached the Demon King's throne.",
-                    "But before the overwhelming might of the Demon King,",
-                    "the hero stood no chance—and was defeated."
+            case UIScreenID.Scene1_Opening:
+                return new List<string> {
+        "This is a world threatened by the Demon King.",
+        "Before a lone hero stands the legendary sword.",
+        "Will he draw the blade and face the Demon King?",
+        "He must make a choice—one that will shape the fate of all."
+      };
+            case UIScreenID.Scene2a_SwordChoice:
+                return new List<string> {
+        "The hero drew the sword and chose to fight.",
+        "Ahead lies the battle that awaits in the Demon King's castle.",
+        "Will he walk this path alone—",
+        "or journey forward alongside companions?"
+      };
+            case UIScreenID.Scene2b_HeroineChoice:
+                return new List<string> {
+        "The hero chose not to draw the sword.",
+        "He turned away from the legendary sword,",
+        "After that, he came across a young girl attacked by mosnters.",
+        "Should he help her, or run away?"
+      };
+            case UIScreenID.Scene3a_Alone:
+                return new List<string> {
+        "The hero set out alone to challenge the Demon King.",
+        "Thanks to the power of the legendary sword,",
+        "he finally reached the Demon King's throne.",
+        "But before the overwhelming might of the Demon King,",
+        "the hero stood no chance—and was defeated."
+      };
 
-                };
-            case VoiceCommand.State.Friends:
+            case UIScreenID.Scene3b_WithCompanion:
                 return new List<string>
-                {
-                    "Together with his companions, the hero overcame countless trials.",
-                    "At last, they reached the Demon King's stronghold.",
-                    "With the support of his allies," ,
-                    "the hero finally succeeded in defeating the Demon King.",
-                    "And so, peace returned to the world."
+      {
+        "Together with his companions, the hero overcame countless trials.",
+        "At last, they reached the Demon King's stronghold.",
+        "With the support of his allies," ,
+        "the hero finally succeeded in defeating the Demon King.",
+        "And so, peace returned to the world."
+      };
 
-
-                };
-            case VoiceCommand.State.Help:
+            case UIScreenID.Scene3c_Happy:
                 return new List<string>
-                {
-                    "Summoning his courage, the hero finally defeated monsters",
-                    "The girl was saved and deeply grateful.",
-                    "In time, the hero and the girl became bound by love.",
-                    "They decided to live together,"
 
-                };
-            case VoiceCommand.State.NotHelp:
+      {
+        "Summoning his courage, the hero finally defeated monsters",
+        "The girl was saved and deeply grateful.",
+        "In time, the hero and the girl became bound by love.",
+        "They decided to live together,"
+      };
+            case UIScreenID.Scene3d_Bad:
                 return new List<string>
-                {
-                    "The hero couldn't find the courage and ran away.",
-                    "As a result, the girl was killed by the monsters.",
-                    "Consumed by hatred, she was reborn as a monster herself.",
-                    "In the end, the hero was killed by her hand."
-                };
+
+      {
+        "The hero couldn't find the courage and ran away.",
+        "As a result, the girl was killed by the monsters.",
+        "Consumed by hatred, she was reborn as a monster herself.",
+        "In the end, the hero was killed by her hand."
+      };
+            default:
+                return new List<string>();
+        }
+
+    }
+
+    // ★音声ファイルのパスを返すメソッド
+    private List<string> GetVoiceClipPathsForScreen(UIScreenID screenId)
+    {
+        switch (screenId)
+        {
+            case UIScreenID.Scene1_Opening:
+                return new List<string> {
+                    "Voice/Opening1",
+                    "Voice/Opening2",
+                    "Voice/Opening3",
+                    "Voice/Opening4"
+      };
+            case UIScreenID.Scene2a_SwordChoice:
+                return new List<string> {
+                    "Voice/Sword1",
+                    "Voice/Sword2",
+                    "Voice/Sword3",
+                    "Voice/Sword4"
+      };
+            case UIScreenID.Scene2b_HeroineChoice:
+                return new List<string> {
+                    "Voice/Heroine1",
+                    "Voice/Heroine2",
+                    "Voice/Heroine3",
+                    "Voice/Heroine4"
+      };
+            case UIScreenID.Scene3a_Alone:
+                return new List<string> {
+                    "Voice/Alone1",
+                    "Voice/Alone2",
+                    "Voice/Alone3",
+                    "Voice/Alone4",
+                    "Voice/Alone5"
+      };
+
+            case UIScreenID.Scene3b_WithCompanion:
+                return new List<string>
+      {
+                    "Voice/Friends1",
+                    "Voice/Friends2",
+                    "Voice/Friends3",
+                    "Voice/Friends4",
+                    "Voice/Friends5"
+      };
+
+            case UIScreenID.Scene3c_Happy:
+                return new List<string>
+      {
+                    "Voice/Help1",
+                    "Voice/Help2",
+                    "Voice/Help3",
+                    "Voice/Help4"
+      };
+            case UIScreenID.Scene3d_Bad:
+                return new List<string>
+      {
+                    "Voice/NotHelp1",
+                    "Voice/NotHelp2",
+                    "Voice/NotHelp3",
+                    "Voice/NotHelp4"
+      };
             default:
                 return new List<string>();
         }
     }
-    //1行目から流すコード。Openingにしか使えない
-    private IEnumerator ShowNarrationSequenceOpening(List<string> lines)
-    {
-        for (int i = 0; i < lines.Count; i++)
-        {
-            uiText3.text = lines[i];
-
-            // 必要であればここで VOICEVOX 音声再生処理も追加
-            // audioSource.PlayOneShot(...)
-            if(i < voiceClips.Count && voiceClips[i] != null)
-            {
-                audioSource.Stop();
-                audioSource.clip = voiceClips[i];
-                audioSource.Play();
-            }
-
-            if (i < lines.Count - 1)
-                yield return new WaitForSeconds(voiceClips[i].length + 0.2f);
-            else
-            {
-                // 音声がなければ固定時間だけ待つ
-                yield return new WaitForSeconds(narrationInterval);
-            }
-        }
-
-
-    }
-    //２行目以降を流すためのコード
-    private IEnumerator ShowNarrationSequence(List<string> lines)
-    {
-        for (int i = 1; i < lines.Count; i++)
-        {
-            uiText3.text = lines[i];
-
-            // 必要であればここで VOICEVOX 音声再生処理も追加
-            // audioSource.PlayOneShot(...)
-            if (i < voiceClips.Count && voiceClips[i] != null)
-            {
-                audioSource.Stop();
-                audioSource.clip = voiceClips[i];
-                audioSource.Play();
-            }
-            if (i < lines.Count - 1)
-                yield return new WaitForSeconds(voiceClips[i].length + 0.2f);
-            else
-            {
-                // 音声がなければ固定時間だけ待つ
-                yield return new WaitForSeconds(narrationInterval);
-            }
-        }
-    }
-
-
-    public void SetVoiceClipsForState(VoiceCommand.State state)
-    {
-        voiceClips.Clear();
-        switch (state)
-        {
-            case VoiceCommand.State.Opening:
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Opening1"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Opening2"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Opening3"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Opening4"));
-                break;
-            // 他のStateも同様に設定
-            case VoiceCommand.State.Sword:
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Sword1"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Sword2"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Sword3"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Sword4"));
-                break;
-            case VoiceCommand.State.Heroine:
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Heroine1"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Heroine2"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Heroine3"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Heroine4"));
-                break;
-            case VoiceCommand.State.Alone:
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Alone1"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Alone2"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Alone3"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Alone4"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Alone5"));
-                break;
-            case VoiceCommand.State.Friends:
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Friends1"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Friends2"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Friends3"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Friends4"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Friends5"));    
-                break;
-            case VoiceCommand.State.Help:
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Help1"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Help2"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Help3"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/Help4"));
-                break;
-            case VoiceCommand.State.NotHelp:
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/NotHelp1"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/NotHelp2"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/NotHelp3"));
-                voiceClips.Add(Resources.Load<AudioClip>("Voice/NotHelp4"));
-                break;
-            default:
-                break;
-
-        }
-    }
-
 }

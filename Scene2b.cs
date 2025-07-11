@@ -22,6 +22,8 @@ public class FinalMovementControllerV2 : MonoBehaviour
 
     private MovementState currentState;
 
+    private bool uiHasBeenShown = false; // UIが表示済みかを記録する
+
     [Header("Settings")]
     public float moveSpeed = 5.0f;
     public float rotateSpeed = 180.0f;
@@ -51,8 +53,6 @@ public class FinalMovementControllerV2 : MonoBehaviour
     private KeywordRecognizer recognizer;
     private Dictionary<string, System.Action> voiceCommands = new Dictionary<string, System.Action>();
 
-    public GameObject targetTerrainGameObject;
-
     void Start()
     {
         currentState = MovementState.TurningToWaitPoint;
@@ -63,7 +63,6 @@ public class FinalMovementControllerV2 : MonoBehaviour
         Turtle3Movement = turtle3.GetComponent<Animator>();
         // ★ローカル座標で動作するように初期位置を設定
         transform.localPosition = Vector3.zero;
-        targetTerrainGameObject.SetActive(!targetTerrainGameObject.activeSelf);
     }
 
     void Update()
@@ -90,11 +89,23 @@ public class FinalMovementControllerV2 : MonoBehaviour
                 }
                 break;
 
+            // FinalMovementControllerV2.cs の Update()メソッド内
+
             case MovementState.TurningToPreviewA:
-                // ★ローカル座標で計算
+                // ★ローカル座標で計算（この部分は元のまま）
                 Vector3 directionToA_Preview = (targetA - transform.localPosition).normalized;
                 targetRotation = Quaternion.LookRotation(directionToA_Preview);
                 transform.localRotation = Quaternion.RotateTowards(transform.localRotation, targetRotation, rotateSpeed * Time.deltaTime);
+
+                // ★変更: UIがまだ表示されていない場合のみ、一度だけ実行する
+                if (!uiHasBeenShown)
+                {
+                    // UIControllerにUI表示を命令
+                    SceneManager.Instance.ShowUIPrompt(UIController.UIScreenID.Scene2b_HeroineChoice);
+                    // ★変更: 表示したことを記録する
+                    uiHasBeenShown = true;
+                }
+
                 if (Quaternion.Angle(transform.localRotation, targetRotation) < 1.0f)
                 {
                     currentState = MovementState.WaitingForInput;
@@ -168,14 +179,16 @@ public class FinalMovementControllerV2 : MonoBehaviour
         voiceCommands.Clear();
 
         // 「助ける」と発声された時の処理
-        voiceCommands.Add("助ける", () => {
+        voiceCommands.Add("Save", () => {
+            SceneManager.Instance.TriggerChoiceGlow(true);
             currentState = MovementState.MovingToA;
             HeroMovement.SetTrigger("MoveTrigger");
             SceneManager.Instance.SetFinalOutcome(SceneManager.FinalOutcome.Result_From_2b_PathA);
         });
 
         // 「去る」と発声された時の処理
-        voiceCommands.Add("去る", () => {
+        voiceCommands.Add("Run away", () => {
+            SceneManager.Instance.TriggerChoiceGlow(false);
             HeroMovement.SetTrigger("MoveTrigger");
             Vector3 directionToB = (targetB - transform.localPosition).normalized;
             targetRotation = Quaternion.LookRotation(directionToB);

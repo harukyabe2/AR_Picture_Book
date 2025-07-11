@@ -23,11 +23,13 @@ public class scene3b : MonoBehaviour
 
     private float startOffset = 3.0f;
 
-    public GameObject targetTerrainGameObject1, targetTerrainGameObject2;
+    public GameObject targetTerrainGameObject;
 
     // Start is called before the first frame update
     void Start()
     {
+        // UIControllerにUI表示を命令
+        SceneManager.Instance.ShowUIPrompt(UIController.UIScreenID.Scene3b_WithCompanion);
         HeroWinning = GetComponent<Animator>();
         HeroinWinning = Heroin.GetComponent<Animator>();
         WizardWinning = Wizard.GetComponent<Animator>();
@@ -37,8 +39,7 @@ public class scene3b : MonoBehaviour
         Invoke(nameof(HeroAttackTriggerOn), startOffset + 2.2f);
         //Invoke(nameof(DemonDieTriggerOn), startOffset + 3.5f);
         Invoke(nameof(VictoryTriggerOn), startOffset + 6.1f);
-        targetTerrainGameObject1.SetActive(!targetTerrainGameObject1.activeSelf);
-        targetTerrainGameObject2.SetActive(!targetTerrainGameObject2.activeSelf);
+        targetTerrainGameObject.SetActive(!targetTerrainGameObject.activeSelf);
     }
 
     // Update is called once per frame
