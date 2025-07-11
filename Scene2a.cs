@@ -23,6 +23,8 @@ public class Scene2a_HeroSelectingWay : MonoBehaviour
 
     private MovementState currentState;
 
+    private bool uiHasBeenShown = false; // UIが表示済みかを記録する
+
     [Header("Settings")]
     public float moveSpeed = 5.0f;
     public float rotateSpeed = 180.0f;
@@ -54,8 +56,19 @@ public class Scene2a_HeroSelectingWay : MonoBehaviour
     {
         switch (currentState)
         {
+            // Scene2a_HeroSelectingWay.cs の Update()メソッド内
+
             case MovementState.MovingToWaitPoint:
-                // ★ローカル座標で移動
+                // ★追加: UIがまだ表示されていない場合のみ、一度だけ実行する
+                if (!uiHasBeenShown)
+                {
+                    // UIControllerにUI表示を命令
+                    SceneManager.Instance.ShowUIPrompt(UIController.UIScreenID.Scene2a_SwordChoice);
+                    // ★追加: 表示したことを記録する
+                    uiHasBeenShown = true;
+                }
+
+                // ★ローカル座標で移動（この行は元のまま）
                 transform.localPosition = Vector3.MoveTowards(transform.localPosition, waitPoint, moveSpeed * Time.deltaTime);
                 if (transform.localPosition == waitPoint)
                 {
@@ -133,7 +146,8 @@ public class Scene2a_HeroSelectingWay : MonoBehaviour
         voiceCommands.Clear();
 
         // 「左」と発声された時の処理
-        voiceCommands.Add("一人で", () => {
+        voiceCommands.Add("Alone", () => {
+            SceneManager.Instance.TriggerChoiceGlow(true);
             HeroMovement.SetTrigger("MoveTrigger");
             // A地点(左)の方向を計算
             Vector3 directionToA = (targetA - transform.localPosition).normalized;
@@ -143,7 +157,8 @@ public class Scene2a_HeroSelectingWay : MonoBehaviour
         });
 
         // 「右」と発声された時の処理
-        voiceCommands.Add("仲間と", () => {
+        voiceCommands.Add("With companion", () => {
+            SceneManager.Instance.TriggerChoiceGlow(false);
             HeroMovement.SetTrigger("MoveTrigger");
             // B地点(右)の方向を計算
             Vector3 directionToB = (targetB - transform.localPosition).normalized;

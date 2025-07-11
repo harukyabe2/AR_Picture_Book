@@ -18,6 +18,8 @@ public class SceneManager : MonoBehaviour
     }
     public FinalOutcome CurrentFinalOutcome { get; private set; }
 
+    public UIController uiController;
+
 
     void Awake()
     {
@@ -29,6 +31,11 @@ public class SceneManager : MonoBehaviour
         else
         {
             Destroy(gameObject);
+        }
+
+        if (uiController == null)
+        {
+            uiController = FindObjectOfType<UIController>();
         }
     }
 
@@ -46,5 +53,35 @@ public class SceneManager : MonoBehaviour
     {
         CurrentFinalOutcome = outcome;
         Debug.Log("SceneManager: 最終結果が「" + outcome.ToString() + "」に設定されました。");
+    }
+
+    public void ShowUIPrompt(UIController.UIScreenID screenId)
+    {
+        if (uiController != null)
+        {
+            uiController.ShowScreen(screenId);
+        }
+        else
+        {
+            Debug.LogError("UIManagerがSceneManagerに設定されていません！");
+        }
+    }
+
+    public void HideUIPrompt()
+    {
+        if (uiController != null)
+        {
+            uiController.HideAllUI();
+        }
+    }
+
+    // SceneManager.cs の末尾に以下のメソッドを追加
+
+    public void TriggerChoiceGlow(bool isLeftChoice)
+    {
+        if (uiController != null)
+        {
+            uiController.TriggerGlowEffect(isLeftChoice);
+        }
     }
 }
